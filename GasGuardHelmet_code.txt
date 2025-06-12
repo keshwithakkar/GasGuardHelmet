@@ -1,0 +1,72 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#define MQ3_PIN A0        // MQ-3 Sensor analog pin
+#define BUZZER_PIN 8      // Buzzer pin
+
+// Gas concentration threshold levels (example values, calibration needed)
+#define ETHANOL_THRESHOLD 150  
+#define CO_THRESHOLD 200  
+#define CO2_THRESHOLD 250  
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);  // LCD I2C Address 0x27
+
+void setup() {  
+  pinMode(BUZZER_PIN, OUTPUT);
+  Serial.begin(9600);
+ 
+  lcd.init();
+  lcd.backlight();
+
+  // Startup message
+  lcd.setCursor(0, 0);
+  lcd.print("  Gas Detector  ");
+  lcd.setCursor(0, 1);
+  lcd.print("   Starting...  ");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  int gasValue = analogRead(MQ3_PIN); // Read gas sensor value
+
+  // Convert analog value to estimated PPM (calibration required)
+  float ethanolPPM = map(gasValue, 0, 1023, 0, 500);  
+  float coPPM = map(gasValue, 0, 1023, 0, 400);
+  float co2PPM = map(gasValue, 0, 1023, 0, 1000);
+
+  // Print detailed gas data in Serial Monitor
+  Serial.println("-------- Gas Sensor Data --------");
+  Serial.print("Raw Sensor Value: "); Serial.println(gasValue);
+  Serial.print("Ethanol Level: "); Serial.print(ethanolPPM); Serial.println(" PPM");
+  Serial.print("Carbon Monoxide (CO) Level: "); Serial.print(coPPM); Serial.println(" PPM");
+  Serial.print("Carbon Dioxide (CO2) Level: "); Serial.print(co2PPM); Serial.println(" PPM");
+  Serial.println("---------------------------------");
+
+  // Display Gas Level on LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Gas Level: ");
+  lcd.print(gasValue);
+
+  // Check if dangerous gas levels are detected
+  if (ethanolPPM > ETHANOL_THRESHOLD || coPPM > CO_THRESHOLD || co2PPM > CO2_THRESHOLD) {
+    // 🚨 WARNING MODE
+    digitalWrite(BUZZER_PIN, HIGH);
+    lcd.setCursor(0, 1);
+    lcd.print("⚠️ WARNING! Gas!");
+    Serial.println("⚠️ DANGER! High Gas Levels Detected!");
+
+    delay(500); // Blinking effect
+    lcd.clear();
+    delay(500);
+  } else {
+    // 😊 SAFE MODE
+    digitalWrite(BUZZER_PIN, LOW);
+    lcd.setCursor(0, 1);
+    lcd.print("No Gas Detected 😊");
+    Serial.println("Air is Safe 😊");
+  }
+
+  delay(1000);
+}
